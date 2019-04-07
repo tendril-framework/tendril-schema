@@ -57,7 +57,7 @@ class SchemaManager(object):
     def load(self, targetpath, hardfail=True):
         baseparser = getattr(self, 'SchemaControlledYamlFile')
         target = baseparser(targetpath, hardfail=False)
-        target_schema = target.actual_schema_name
+        target_schema = target.schema_name
         if target_schema not in self._schemas.keys():
             # TODO Replace with a generic OptionPolicy?
             policy = ConfigOptionPolicy(self._validation_context,

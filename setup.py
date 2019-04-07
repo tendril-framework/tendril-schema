@@ -25,7 +25,7 @@ test_requirements = [
 
 setup(
     name='tendril-schema',
-    version='0.1.1',
+    version='0.1.2',
     description="Tendril Schema Management Infrastructure",
     long_description=readme,
     author="Chintalagiri Shashank",

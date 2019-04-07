@@ -99,11 +99,15 @@ class ConfigValueInvalidError(ContextualConfigError):
 
 
 class ConfigOptionPolicy(ValidationPolicy):
-    def __init__(self, context, path, options=None, default=None, is_error=True):
+    def __init__(self, context, path, parser=str, options=None, default=None, is_error=True):
         super(ConfigOptionPolicy, self).__init__(context, is_error)
         self.path = path
+        self.parser = parser
         self.options = options
         self.default = default
+
+    def get(self, data):
+        return get_dict_val(data, self)
 
 
 def get_dict_val(d, policy=None):
@@ -129,6 +133,12 @@ def get_dict_val(d, policy=None):
             rval = d.get(policy.path)
         except KeyError:
             raise ConfigKeyError(policy=policy)
+
+    if policy.parser:
+        try:
+            rval = policy.parser(rval)
+        except Exception:
+            raise ConfigValueInvalidError(policy=policy, value=rval)
 
     if policy.options is None or rval in policy.options:
         return rval

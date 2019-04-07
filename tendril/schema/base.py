@@ -24,27 +24,26 @@ from tendril.utils.files import yml as yaml
 
 from tendril.validation.base import ValidatableBase
 from tendril.validation.base import ValidationContext
-
 from tendril.validation.schema import SchemaPolicy
 from tendril.validation.schema import SchemaNotSupportedError
-
 from tendril.validation.configs import ConfigOptionPolicy
-from tendril.validation.configs import get_dict_val
 
 from tendril.utils import log
 logger = log.get_logger(__name__, log.DEFAULT)
 
 
 class SchemaControlledYamlFile(ValidatableBase):
-    schema_name = None
-    schema_version_max = None
-    schema_version_min = None
+    supports_schema_name = None
+    supports_schema_version_max = None
+    supports_schema_version_min = None
 
     def __init__(self, path, hardfail=True):
         super(SchemaControlledYamlFile, self).__init__()
         self._path = path
-        self._validation_context = ValidationContext(self._path,
-                                                     locality=self.schema_name)
+        self._validation_context = ValidationContext(
+            self._path, locality=self.supports_schema_name
+        )
+        self._policies = {}
         self._load_schema_policies()
 
         self._yamldata = None
@@ -63,37 +62,39 @@ class SchemaControlledYamlFile(ValidatableBase):
                 raise
             self._validation_errors.add(e)
 
+    def schema_policies(self):
+        return {
+            'schema_name': ConfigOptionPolicy(
+                self._validation_context, ('schema', 'name')
+            ),
+            'schema_version': ConfigOptionPolicy(
+                self._validation_context, ('schema', 'version'),
+                parser=Decimal
+            ),
+            'schema_policy': SchemaPolicy(
+                self._validation_context,
+                self.supports_schema_name,
+                self.supports_schema_version_max,
+                self.supports_schema_version_min
+            )
+        }
+
     def _load_schema_policies(self):
-        self.schema_name_policy = ConfigOptionPolicy(
-            self._validation_context, ('schema', 'name')
-        )
-        self.schema_ver_policy = ConfigOptionPolicy(
-            self._validation_context, ('schema', 'version')
-        )
-        self.schema_policy = SchemaPolicy(
-            self._validation_context, self.schema_name,
-            self.schema_version_max, self.schema_version_min
-        )
-
-    @property
-    def actual_schema_name(self):
-        return get_dict_val(self._yamldata, self.schema_name_policy)
-
-    @property
-    def actual_schema_version(self):
-        return Decimal(get_dict_val(self._yamldata, self.schema_ver_policy))
+        self._policies.update(self.schema_policies())
 
     def _verify_schema_decl(self):
-        if not self.schema_policy.validate(self.actual_schema_name,
-                                           self.actual_schema_version):
+        policy = self._policies['schema_policy']
+        if not policy.validate(self.schema_name, self.schema_version):
             raise SchemaNotSupportedError(
-                self.schema_policy,
-                '{0}v{1}'.format(self.actual_schema_name,
-                                 self.actual_schema_version)
+                policy,
+                '{0} v{1}'.format(self.schema_name, self.schema_version)
             )
 
     def _validate(self):
         pass
+
+    def __getattr__(self, item):
+        return self._policies[item].get(self._yamldata)
 
 
 def load(manager):

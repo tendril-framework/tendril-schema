@@ -56,6 +56,6 @@ class SchemaNotSupportedError(ValidationError):
             'is_error': self.policy.is_error,
             'group': self.msg,
             'headline': "Got {0} in {1}".format(
-                self._value, self.policy.context.render()),
+                self._value, self.policy.context),
             'detail': self.policy.render(),
         }
