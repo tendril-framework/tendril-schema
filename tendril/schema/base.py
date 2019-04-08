@@ -62,22 +62,28 @@ class SchemaControlledYamlFile(ValidatableBase):
                 raise
             self._validation_errors.add(e)
 
+    def elements(self):
+        return [
+            ('schema_name', ('schema', 'name'), None),
+            ('schema_version', ('schema', 'version'), Decimal),
+        ]
+
     def schema_policies(self):
-        return {
-            'schema_name': ConfigOptionPolicy(
-                self._validation_context, ('schema', 'name')
-            ),
-            'schema_version': ConfigOptionPolicy(
-                self._validation_context, ('schema', 'version'),
-                parser=Decimal
-            ),
-            'schema_policy': SchemaPolicy(
-                self._validation_context,
-                self.supports_schema_name,
-                self.supports_schema_version_max,
-                self.supports_schema_version_min
-            )
+        parsers = {
+            x[0]: ConfigOptionPolicy(self._validation_context, x[1], parser=x[2])
+            for x in self.elements()
         }
+        parsers.update(
+            {
+                'schema_policy': SchemaPolicy(
+                    self._validation_context,
+                    self.supports_schema_name,
+                    self.supports_schema_version_max,
+                    self.supports_schema_version_min
+                )
+            }
+        )
+        return parsers
 
     def _load_schema_policies(self):
         self._policies.update(self.schema_policies())
@@ -94,7 +100,9 @@ class SchemaControlledYamlFile(ValidatableBase):
         pass
 
     def __getattr__(self, item):
-        return self._policies[item].get(self._yamldata)
+        value = self._policies[item].get(self._yamldata)
+        setattr(self, item, value)
+        return value
 
 
 def load(manager):
