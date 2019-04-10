@@ -20,6 +20,8 @@
 
 
 from six import iteritems
+from inspect import isclass
+from tendril.validation.base import ValidatableBase
 
 
 class MultilineString(list):
@@ -30,23 +32,34 @@ class MultilineString(list):
         return '\n'.join(self)
 
 
-class SchemaObjectSet(object):
-    def __init__(self, content, objtype):
-        self.content = {}
+class SchemaObjectSet(ValidatableBase):
+    def __init__(self, content, objtype, *args, **kwargs):
+        super(SchemaObjectSet, self).__init__(*args, **kwargs)
+        self.content = content or {}
         for k, v in iteritems(content):
-            self.content[k] = objtype(self, **v)
+            if isclass(objtype) and issubclass(objtype, ValidatableBase):
+                value = objtype(v, vctx=self._validation_context)
+                value.validate()
+                self._validation_errors.add(value.validation_errors)
+            else:
+                value = objtype(v)
+            self.content[k] = value
 
     def keys(self):
         return self.content.keys()
+
+    def _validate(self):
+        # TODO
+        pass
 
     def __getitem__(self, item):
         return self.content[item]
 
 
 class SchemaSelectableObjectSet(SchemaObjectSet):
-    def __init__(self, content, objtype):
+    def __init__(self, content, *args, **kwargs):
         default = content.pop('default')
-        super(SchemaSelectableObjectSet, self).__init__(content, objtype)
+        super(SchemaSelectableObjectSet, self).__init__(content, *args, **kwargs)
         self.default = self.content[default]
 
     def __getitem__(self, item):

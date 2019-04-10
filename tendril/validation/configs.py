@@ -19,6 +19,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+from copy import copy
+from inspect import isclass
+from tendril.validation.base import ValidatableBase
 from tendril.validation.base import ValidationError
 from tendril.validation.base import ValidationPolicy
 
@@ -99,15 +102,23 @@ class ConfigValueInvalidError(ContextualConfigError):
 
 
 class ConfigOptionPolicy(ValidationPolicy):
-    def __init__(self, context, path, parser=str, options=None, default=None, is_error=True):
+    def __init__(self, context, path, parser=str, required=True,
+                 options=None, default=None, is_error=True):
         super(ConfigOptionPolicy, self).__init__(context, is_error)
         self.path = path
         self.parser = parser
         self.options = options
         self.default = default
+        self.required = required
 
     def get(self, data):
-        return get_dict_val(data, self)
+        try:
+            return get_dict_val(data, self)
+        except ConfigKeyError as error:
+            if not self.required:
+                return
+            else:
+                raise error
 
 
 def get_dict_val(d, policy=None):
@@ -136,8 +147,15 @@ def get_dict_val(d, policy=None):
 
     if policy.parser:
         try:
-            rval = policy.parser(rval)
-        except Exception:
+            if isclass(policy.parser) and \
+                    issubclass(policy.parser, ValidatableBase):
+                vctx = copy(policy.context)
+                vctx.locality = '/'.join([vctx.locality,
+                                          policy.parser.__name__])
+                rval = policy.parser(rval, vctx=vctx)
+            else:
+                rval = policy.parser(rval)
+        except Exception as e:
             raise ConfigValueInvalidError(policy=policy, value=rval)
 
     if policy.options is None or rval in policy.options:

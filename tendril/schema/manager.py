@@ -54,16 +54,16 @@ class SchemaManager(object):
     def __getattr__(self, item):
         return self._schemas[item]
 
-    def load(self, targetpath, hardfail=True):
+    def load(self, targetpath):
         baseparser = getattr(self, 'SchemaControlledYamlFile')
-        target = baseparser(targetpath, hardfail=False)
+        target = baseparser(targetpath)
         target_schema = target.schema_name
         if target_schema not in self._schemas.keys():
             # TODO Replace with a generic OptionPolicy?
             policy = ConfigOptionPolicy(self._validation_context,
                                         'schema.name', self._schemas.keys())
             raise SchemaNotSupportedError(policy, target_schema)
-        return getattr(self, target_schema)(targetpath, hardfail=hardfail)
+        return getattr(self, target_schema)(targetpath)
 
     def doc_render(self):
         return self._docs
