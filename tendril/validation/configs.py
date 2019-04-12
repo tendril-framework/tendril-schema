@@ -112,6 +112,8 @@ class ConfigOptionPolicy(ValidationPolicy):
         self.required = required
 
     def get(self, data):
+        if self.path is None:
+            return data
         try:
             return get_dict_val(data, self)
         except ConfigKeyError as error:
@@ -127,6 +129,7 @@ def get_dict_val(d, policy=None):
     except AssertionError:
         print("Expected to get a dictionary here. This probably means the YAML "
               "file is empty or unrecognizably mangled. Got {0} instead.".format(d))
+        print(policy.context)
         raise
     if isinstance(policy.path, tuple):
         try:

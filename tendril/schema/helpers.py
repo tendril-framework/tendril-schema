@@ -34,6 +34,7 @@ class MultilineString(list):
 
 class SchemaObjectCollection(ValidatableBase):
     _objtype = None
+    _allow_empty = True
 
     def __init__(self, content, *args, **kwargs):
         super(SchemaObjectCollection, self).__init__(*args, **kwargs)
@@ -48,17 +49,30 @@ class SchemaObjectCollection(ValidatableBase):
     def content(self):
         return self._content
 
-    def _parse_item(self, item):
-        if isclass(self._objtype) and \
-                issubclass(self._objtype, ValidatableBase):
-            value = self._objtype(item, vctx=self._validation_context)
+    def _parse_item_with(self, item, objtype):
+        if isclass(objtype) and \
+                issubclass(objtype, ValidatableBase):
+            value = objtype(item, vctx=self._validation_context)
             value.validate()
             self._validation_errors.add(value.validation_errors)
-        elif self._objtype:
-            value = self._objtype(item)
+        elif objtype:
+            value = objtype(item)
         else:
             value = item
         return value
+
+    def _parse_item(self, item):
+        if isinstance(self._objtype, list):
+            default_parser = None
+            for sig, parser in self._objtype:
+                if sig == 'default':
+                    default_parser = parser
+                    continue
+                if isinstance(item, sig):
+                    return self._parse_item_with(item, default_parser)
+            return self._parse_item_with(item, default_parser)
+        else:
+            return self._parse_item_with(item, self._objtype)
 
     def _validate(self):
         pass
@@ -70,7 +84,8 @@ class SchemaObjectCollection(ValidatableBase):
 class SchemaObjectList(SchemaObjectCollection):
     def __init__(self, *args, **kwargs):
         super(SchemaObjectList, self).__init__(*args, **kwargs)
-
+        if not self._source_content and self._allow_empty:
+            return
         for item in self._source_content:
             self._content.append(self._parse_item(item))
 
@@ -85,7 +100,8 @@ class SchemaObjectList(SchemaObjectCollection):
 class SchemaObjectSet(SchemaObjectCollection):
     def __init__(self, *args, **kwargs):
         super(SchemaObjectSet, self).__init__(*args, **kwargs)
-
+        if not self._source_content and self._allow_empty:
+            return
         for k, v in iteritems(self._source_content):
             self._content[k] = self._parse_item(v)
 
