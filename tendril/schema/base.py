@@ -69,8 +69,15 @@ class SchemaProcessorBase(ValidatableBase):
                 except ContextualConfigError as e:
                     self._validation_errors.add(e)
 
+    def __getattr__(self, item):
+        policy = self._policies[item]
+        try:
+            return policy.get(self._raw)
+        except ContextualConfigError as e:
+            raise e
+
     def _validate(self):
-        pass
+        self._validated = True
 
 
 class NakedSchemaObject(SchemaProcessorBase):
@@ -124,16 +131,14 @@ class SchemaControlledYamlFile(SchemaProcessorBase):
 
     def schema_policies(self):
         policies = super(SchemaControlledYamlFile, self).schema_policies()
-        policies.update(
-            {
+        policies.update({
                 'schema_policy': SchemaPolicy(
                     self._validation_context,
                     self.supports_schema_name,
                     self.supports_schema_version_max,
                     self.supports_schema_version_min
                 )
-            }
-        )
+        })
         return policies
 
     def _verify_schema_decl(self):

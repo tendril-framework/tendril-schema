@@ -32,28 +32,69 @@ class MultilineString(list):
         return '\n'.join(self)
 
 
-class SchemaObjectSet(ValidatableBase):
-    def __init__(self, content, objtype, *args, **kwargs):
-        super(SchemaObjectSet, self).__init__(*args, **kwargs)
-        self.content = content or {}
-        for k, v in iteritems(content):
-            if isclass(objtype) and issubclass(objtype, ValidatableBase):
-                value = objtype(v, vctx=self._validation_context)
-                value.validate()
-                self._validation_errors.add(value.validation_errors)
-            else:
-                value = objtype(v)
-            self.content[k] = value
+class SchemaObjectCollection(ValidatableBase):
+    _objtype = None
 
-    def keys(self):
-        return self.content.keys()
+    def __init__(self, content, *args, **kwargs):
+        super(SchemaObjectCollection, self).__init__(*args, **kwargs)
+        self._source_content = content
+        self._content = self._empty_container
+
+    @property
+    def _empty_container(self):
+        raise NotImplementedError
+
+    @property
+    def content(self):
+        return self._content
+
+    def _parse_item(self, item):
+        if isclass(self._objtype) and \
+                issubclass(self._objtype, ValidatableBase):
+            value = self._objtype(item, vctx=self._validation_context)
+            value.validate()
+            self._validation_errors.add(value.validation_errors)
+        elif self._objtype:
+            value = self._objtype(item)
+        else:
+            value = item
+        return value
 
     def _validate(self):
-        # TODO
         pass
 
     def __getitem__(self, item):
         return self.content[item]
+
+
+class SchemaObjectList(SchemaObjectCollection):
+    def __init__(self, *args, **kwargs):
+        super(SchemaObjectList, self).__init__(*args, **kwargs)
+
+        for item in self._source_content:
+            self._content.append(self._parse_item(item))
+
+    @property
+    def _empty_container(self):
+        return []
+
+    def __len__(self):
+        return len(self._content)
+
+
+class SchemaObjectSet(SchemaObjectCollection):
+    def __init__(self, *args, **kwargs):
+        super(SchemaObjectSet, self).__init__(*args, **kwargs)
+
+        for k, v in iteritems(self._source_content):
+            self._content[k] = self._parse_item(v)
+
+    @property
+    def _empty_container(self):
+        return {}
+
+    def keys(self):
+        return self.content.keys()
 
 
 class SchemaSelectableObjectSet(SchemaObjectSet):
