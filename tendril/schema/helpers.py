@@ -69,7 +69,7 @@ class SchemaObjectCollection(ValidatableBase):
                     default_parser = parser
                     continue
                 if isinstance(item, sig):
-                    return self._parse_item_with(item, default_parser)
+                    return self._parse_item_with(item, parser)
             return self._parse_item_with(item, default_parser)
         else:
             return self._parse_item_with(item, self._objtype)
