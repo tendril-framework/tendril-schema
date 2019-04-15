@@ -102,7 +102,7 @@ class ConfigValueInvalidError(ContextualConfigError):
 
 
 class ConfigOptionPolicy(ValidationPolicy):
-    def __init__(self, context, path, parser=str, required=True,
+    def __init__(self, context, path, parser=None, required=True,
                  options=None, default=None, is_error=True):
         super(ConfigOptionPolicy, self).__init__(context, is_error)
         self.path = path
