@@ -118,7 +118,17 @@ class ConfigOptionPolicy(ValidationPolicy):
             return get_dict_val(data, self)
         except ConfigKeyError as error:
             if not self.required:
-                return
+                if self.default is None or not self.parser:
+                    return self.default
+                if isclass(self.parser):
+                    if isinstance(self.default, self.parser):
+                        return self.default
+                    if issubclass(self.parser, ValidatableBase):
+                        vctx = copy(self.context)
+                        vctx.locality = '/'.join([vctx.locality,
+                                                 self.parser.__name__])
+                        return self.parser(self.default, vctx=vctx)
+                return self.parser(self.default)
             else:
                 raise error
 
