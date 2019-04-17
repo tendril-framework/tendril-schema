@@ -19,7 +19,6 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-from copy import copy
 from inspect import isclass
 from tendril.validation.base import ValidatableBase
 from tendril.validation.base import ValidationError
@@ -120,17 +119,20 @@ class ConfigOptionPolicy(ValidationPolicy):
             if not self.required:
                 if self.default is None or not self.parser:
                     return self.default
-                if isclass(self.parser):
-                    if isinstance(self.default, self.parser):
-                        return self.default
-                    if issubclass(self.parser, ValidatableBase):
-                        vctx = copy(self.context)
-                        vctx.locality = '/'.join([vctx.locality,
-                                                 self.parser.__name__])
-                        return self.parser(self.default, vctx=vctx)
-                return self.parser(self.default)
+                if isclass(self.parser) and isinstance(self.default, self.parser):
+                    return self.default
+                vctx = self.context.child(self.parser.__name__)
+                return _parse(self.parser, self.default, vctx=vctx)
             else:
                 raise error
+
+
+def _parse(parser, value, vctx=None):
+    if isclass(parser) and \
+            issubclass(parser, ValidatableBase):
+        return parser(value, vctx=vctx)
+    else:
+        return parser(value)
 
 
 def get_dict_val(d, policy=None):
@@ -160,14 +162,19 @@ def get_dict_val(d, policy=None):
 
     if policy.parser:
         try:
-            if isclass(policy.parser) and \
-                    issubclass(policy.parser, ValidatableBase):
-                vctx = copy(policy.context)
-                vctx.locality = '/'.join([vctx.locality,
-                                          policy.parser.__name__])
-                rval = policy.parser(rval, vctx=vctx)
+            if isinstance(policy.parser, tuple):
+                for parser in policy.parser:
+                    try:
+                        vctx = policy.context.child(parser.__name__)
+                        rval = _parse(parser, rval, vctx)
+                        break
+                    except:
+                        continue
+                else:
+                    raise Exception
             else:
-                rval = policy.parser(rval)
+                vctx = policy.context.child(policy.parser.__name__)
+                rval = _parse(policy.parser, rval, vctx)
         except Exception as e:
             raise ConfigValueInvalidError(policy=policy, value=rval)
 

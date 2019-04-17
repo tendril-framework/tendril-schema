@@ -98,10 +98,13 @@ class SchemaControlledYamlFile(SchemaProcessorBase):
 
     def __init__(self, path, *args, **kwargs):
         self._path = path
-        vctx = ValidationContext(self._path,
-                                 locality=self.supports_schema_name)
-        super(SchemaControlledYamlFile, self).__init__(*args, vctx=vctx,
-                                                       **kwargs)
+        vctx = ValidationContext(
+            self._path,
+            locality=self.supports_schema_name or self.__class__.__name__
+        )
+        super(SchemaControlledYamlFile, self).__init__(
+            *args, vctx=vctx, **kwargs
+        )
         self._yamldata = None
         self._get_yaml_file()
 
