@@ -22,6 +22,8 @@
 from six import iteritems
 from inspect import isclass
 from tendril.validation.base import ValidatableBase
+from tendril.validation.base import ValidationError
+from tendril.utils.types import ParseException
 
 
 class MultilineString(list):
@@ -34,6 +36,7 @@ class MultilineString(list):
 
 class SchemaObjectCollection(ValidatableBase):
     _objtype = None
+    _validator = None
     _allow_empty = True
 
     def __init__(self, content, *args, **kwargs):
@@ -74,6 +77,18 @@ class SchemaObjectCollection(ValidatableBase):
         else:
             return self._parse_item_with(item, self._objtype)
 
+    def _validate_item(self, item):
+        if not item:
+            return False
+        if self._validator:
+            try:
+                self._validator(item)
+                return True
+            except (ValidationError, ParseException) as e:
+                self._validation_errors.add(e)
+                return False
+        return True
+
     def _validate(self):
         pass
 
@@ -87,6 +102,8 @@ class SchemaObjectList(SchemaObjectCollection):
         if not self._source_content and self._allow_empty:
             return
         for item in self._source_content:
+            if not self._validate_item(item):
+                continue
             self._content.append(self._parse_item(item))
 
     @property
@@ -103,6 +120,8 @@ class SchemaObjectSet(SchemaObjectCollection):
         if not self._source_content and self._allow_empty:
             return
         for k, v in iteritems(self._source_content):
+            if not self._validate_item(v):
+                continue
             self._content[k] = self._parse_item(v)
 
     @property

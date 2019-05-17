@@ -19,8 +19,10 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import os
 from six import iteritems
 from decimal import Decimal
+from jinja2 import Template
 from tendril.utils.files import yml as yaml
 
 from tendril.validation.base import ValidatableBase
@@ -57,17 +59,20 @@ class SchemaProcessorBase(ValidatableBase):
     def _load_schema_policies(self):
         self._policies.update(self.schema_policies())
 
+    def _process_element(self, key, policy):
+        if isinstance(policy, ConfigOptionPolicy):
+            try:
+                value = policy.get(self._raw)
+                if isinstance(value, ValidatableBase):
+                    value.validate()
+                    self._validation_errors.add(value.validation_errors)
+                setattr(self, key, value)
+            except ContextualConfigError as e:
+                self._validation_errors.add(e)
+
     def _process(self):
         for key, policy in iteritems(self._policies):
-            if isinstance(policy, ConfigOptionPolicy):
-                try:
-                    value = policy.get(self._raw)
-                    if isinstance(value, ValidatableBase):
-                        value.validate()
-                        self._validation_errors.add(value.validation_errors)
-                    setattr(self, key, value)
-                except ContextualConfigError as e:
-                    self._validation_errors.add(e)
+            self._process_element(key, policy)
 
     def __getattr__(self, item):
         policy = self._policies[item]
@@ -92,9 +97,11 @@ class NakedSchemaObject(SchemaProcessorBase):
 
 
 class SchemaControlledYamlFile(SchemaProcessorBase):
+    legacy_schema_name = None
     supports_schema_name = None
     supports_schema_version_max = None
     supports_schema_version_min = None
+    template = None
 
     def __init__(self, path, *args, **kwargs):
         self._path = path
@@ -116,7 +123,20 @@ class SchemaControlledYamlFile(SchemaProcessorBase):
     def path(self):
         return self._path
 
+    def _stub_content(self):
+        return {
+            'schema_name': self.supports_schema_name,
+            'schema_version': self.supports_schema_version_max,
+        }
+
+    def _generate_stub(self):
+        template = Template(open(self.template).read())
+        with open(self._path, 'w') as f:
+            f.write(template.render(stage=self._stub_content()))
+
     def _get_yaml_file(self):
+        if self.template and not os.path.exists(self._path):
+            self._generate_stub()
         self._yamldata = yaml.load(self._path)
         self._process()
         try:
@@ -146,6 +166,8 @@ class SchemaControlledYamlFile(SchemaProcessorBase):
 
     def _verify_schema_decl(self):
         policy = self._policies['schema_policy']
+        if self.schema_name == self.legacy_schema_name:
+            self.schema_name = self.supports_schema_name
         if not policy.validate(self.schema_name, self.schema_version):
             raise SchemaNotSupportedError(
                 policy,

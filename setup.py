@@ -15,6 +15,7 @@ with open('README.rst') as readme_file:
 
 requirements = [
     'six',
+    'jinja2',
     'tendril-utils-core>=0.1.13',
     'tendril-validation>=0.1.5',
 ]
@@ -25,7 +26,7 @@ test_requirements = [
 
 setup(
     name='tendril-schema',
-    version='0.1.12',
+    version='0.1.13',
     description="Tendril Schema Management Infrastructure",
     long_description=readme,
     author="Chintalagiri Shashank",
