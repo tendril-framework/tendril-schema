@@ -23,13 +23,7 @@ from six import iteritems
 from inspect import isclass
 from tendril.validation.base import ValidatableBase
 from tendril.validation.base import ValidationError
-
-try :
-    from tendril.utils.types import ParseException
-    _handle_exceptions = (ValidationError, ParseException)
-except ImportError:
-    ParseException = None
-    _handle_exceptions = ValidationError
+from tendril.utils.types import ParseException
 
 
 class MultilineString(list):
@@ -90,7 +84,7 @@ class SchemaObjectCollection(ValidatableBase):
             try:
                 self._validator(item)
                 return True
-            except _handle_exceptions as e:
+            except (ValidationError, ParseException) as e:
                 self._validation_errors.add(e)
                 return False
         return True

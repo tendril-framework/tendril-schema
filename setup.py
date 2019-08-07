@@ -34,6 +34,7 @@ core_dependencies = [
     'tendril-utils-core',
     'tendril-validation',
     'tendril-utils-yaml',
+    'tendril-utils-types',  # TODO Detach this dependency?
 ]
 
 install_requires = core_dependencies + ['wheel']
