@@ -25,7 +25,7 @@ from tendril.validation.base import ValidationContext
 from tendril.validation.configs import ConfigOptionPolicy
 from tendril.validation.schema import SchemaNotSupportedError
 
-from tendril.utils.fsutils import get_namespace_package_names
+from tendril.utils.versions import get_namespace_package_names
 from tendril.utils import log
 logger = log.get_logger(__name__, log.DEFAULT)
 
