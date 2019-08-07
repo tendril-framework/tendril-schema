@@ -13,5 +13,5 @@ Validation Structures
 
 .. toctree::
     tendril.validation.schema
-    tendtil.validation.configs
+    tendril.validation.configs
 
