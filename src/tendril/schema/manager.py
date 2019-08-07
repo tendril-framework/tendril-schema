@@ -52,6 +52,8 @@ class SchemaManager(object):
         self._docs.append((name, doc))
 
     def __getattr__(self, item):
+        if item == '__all__':
+            return False
         return self._schemas[item]
 
     def load(self, targetpath):
