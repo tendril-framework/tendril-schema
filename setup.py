@@ -33,6 +33,7 @@ core_dependencies = [
     'jinja2',
     'tendril-utils-core',
     'tendril-validation',
+    'tendril-utils-yaml',
 ]
 
 install_requires = core_dependencies + ['wheel']
