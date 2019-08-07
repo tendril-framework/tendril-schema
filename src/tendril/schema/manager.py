@@ -57,7 +57,8 @@ class SchemaManager(object):
 
     def __getattr__(self, item):
         if item == '__all__':
-            return False
+            return self._schemas.keys() + \
+                   ['load_schema', 'load', 'doc_render']
         return self._schemas[item]
 
     def load(self, targetpath):
