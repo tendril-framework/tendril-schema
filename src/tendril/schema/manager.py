@@ -28,6 +28,7 @@ import importlib
 from tendril.validation.base import ValidationContext
 from tendril.validation.configs import ConfigOptionPolicy
 from tendril.validation.schema import SchemaNotSupportedError
+from tendril.schema.base import SchemaControlledYamlFile
 
 from tendril.utils.versions import get_namespace_package_names
 from tendril.utils import log
@@ -38,6 +39,7 @@ class SchemaManager(object):
     def __init__(self, prefix):
         self._prefix = prefix
         self._schemas = {}
+        self._file_schemas = {}
         self._docs = []
         self._load_schemas()
         self._validation_context = ValidationContext(self.__module__)
@@ -50,9 +52,13 @@ class SchemaManager(object):
                 continue
             m = importlib.import_module(m_name)
             m.load(self)
+        logger.debug("Done loading schema modules from {0}".format(self._prefix))
 
     def load_schema(self, name, processor, doc):
+        logger.debug("Installing schema definition {0}".format(name))
         self._schemas[name] = processor
+        if issubclass(processor, SchemaControlledYamlFile):
+            self._file_schemas[name] = processor
         self._docs.append((name, doc))
 
     def __getattr__(self, item):
@@ -65,10 +71,11 @@ class SchemaManager(object):
         baseparser = getattr(self, 'SchemaControlledYamlFile')
         target = baseparser(targetpath)
         target_schema = target.schema_name
-        if target_schema not in self._schemas.keys():
+        if target_schema not in self._file_schemas.keys():
             # TODO Replace with a generic OptionPolicy?
             policy = ConfigOptionPolicy(self._validation_context,
-                                        'schema.name', self._schemas.keys())
+                                        'schema.name',
+                                        self._file_schemas.keys())
             raise SchemaNotSupportedError(policy, target_schema)
         return getattr(self, target_schema)(targetpath)
 

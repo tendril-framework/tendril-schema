@@ -47,7 +47,7 @@ class SchemaProcessorBase(ValidatableBase):
 
     @property
     def _raw(self):
-        raise NotImplementedError
+        return self._raw_content
 
     def _p(self, *args, **kwargs):
         return ConfigOptionPolicy(self._validation_context, *args, **kwargs)
@@ -94,37 +94,12 @@ class NakedSchemaObject(SchemaProcessorBase):
         self._raw_content = content
         self._process()
 
-    @property
-    def _raw(self):
-        return self._raw_content
 
-
-class SchemaControlledYamlFile(SchemaProcessorBase):
+class SchemaControlledObject(NakedSchemaObject):
     legacy_schema_name = None
     supports_schema_name = None
     supports_schema_version_max = None
     supports_schema_version_min = None
-    template = None
-
-    def __init__(self, path, *args, **kwargs):
-        self._path = path
-        vctx = ValidationContext(
-            self._path,
-            locality=self.supports_schema_name or self.__class__.__name__
-        )
-        super(SchemaControlledYamlFile, self).__init__(
-            *args, vctx=vctx, **kwargs
-        )
-        self._yamldata = None
-        self._get_yaml_file()
-
-    @property
-    def _raw(self):
-        return self._yamldata
-
-    @property
-    def path(self):
-        return self._path
 
     def _stub_content(self):
         return {
@@ -132,23 +107,8 @@ class SchemaControlledYamlFile(SchemaProcessorBase):
             'schema_version': self.supports_schema_version_max,
         }
 
-    def _generate_stub(self):
-        template = Template(open(self.template).read())
-        with open(self._path, 'w') as f:
-            f.write(template.render(stage=self._stub_content()))
-
-    def _get_yaml_file(self):
-        if self.template and not os.path.exists(self._path):
-            self._generate_stub()
-        self._yamldata = yaml.load(self._path)
-        self._process()
-        try:
-            self._verify_schema_decl()
-        except SchemaNotSupportedError as e:
-            self._validation_errors.add(e)
-
     def elements(self):
-        e = super(SchemaControlledYamlFile, self).elements()
+        e = super(SchemaControlledObject, self).elements()
         e.update({
             'schema_name':    self._p(('schema', 'name'),),
             'schema_version': self._p(('schema', 'version'), parser=Decimal),
@@ -156,7 +116,7 @@ class SchemaControlledYamlFile(SchemaProcessorBase):
         return e
 
     def schema_policies(self):
-        policies = super(SchemaControlledYamlFile, self).schema_policies()
+        policies = super(SchemaControlledObject, self).schema_policies()
         policies.update({
                 'schema_policy': SchemaPolicy(
                     self._validation_context,
@@ -171,11 +131,49 @@ class SchemaControlledYamlFile(SchemaProcessorBase):
         policy = self._policies['schema_policy']
         if self.schema_name == self.legacy_schema_name:
             self.schema_name = self.supports_schema_name
+        logger.debug("Validating Schema Policy : {0} {1}"
+                     "".format(self.schema_name, self.schema_version))
         if not policy.validate(self.schema_name, self.schema_version):
             raise SchemaNotSupportedError(
                 policy,
                 '{0} v{1}'.format(self.schema_name, self.schema_version)
             )
+
+    def _process(self):
+        super(SchemaControlledObject, self)._process()
+        try:
+            self._verify_schema_decl()
+        except SchemaNotSupportedError as e:
+            self._validation_errors.add(e)
+
+
+class SchemaControlledYamlFile(SchemaControlledObject):
+    template = None
+
+    def __init__(self, path, *args, **kwargs):
+        self._path = path
+        vctx = ValidationContext(
+            self._path,
+            locality=self.supports_schema_name or self.__class__.__name__
+        )
+        raw_content = self._get_yaml_file()
+        super(SchemaControlledYamlFile, self).__init__(
+            raw_content, *args, vctx=vctx, **kwargs
+        )
+
+    @property
+    def path(self):
+        return self._path
+
+    def _generate_stub(self):
+        template = Template(open(self.template).read())
+        with open(self._path, 'w') as f:
+            f.write(template.render(stage=self._stub_content()))
+
+    def _get_yaml_file(self):
+        if self.template and not os.path.exists(self._path):
+            self._generate_stub()
+        return yaml.load(self._path)
 
 
 def load(manager):
