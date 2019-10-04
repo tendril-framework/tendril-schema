@@ -90,7 +90,8 @@ class ConfigValueInvalidError(ContextualConfigError):
 
     def render(self):
         if self._policy.options:
-            option_str = "Valid options are {0}".format(', '.join(self._policy.options))
+            option_str = "Valid options are {0}" \
+                         "".format(', '.join(self._policy.options))
         else:
             option_str = ''
         return {
@@ -100,19 +101,25 @@ class ConfigValueInvalidError(ContextualConfigError):
                         "".format(self._value, self._format_path(),
                                   self._policy.context.render()),
             'detail': "The value provided for this configuration option is "
-                      "unrecognized or not allowed in this context. " + option_str,
+                      "unrecognized or not allowed in this context. " +
+                      option_str,
         }
 
 
 class ConfigOptionPolicy(ValidationPolicy):
-    def __init__(self, context, path, parser=None, required=True,
-                 options=None, default=None, is_error=True):
+    def __init__(self, context, path, parser=None, parser_args=None,
+                 required=True, options=None, default=None, is_error=True):
         super(ConfigOptionPolicy, self).__init__(context, is_error)
         self.path = path
         self.parser = parser
+        self._parser_args = parser_args
         self.options = options
         self.default = default
         self.required = required
+
+    @property
+    def parser_args(self):
+        return self._parser_args or {}
 
     def get(self, data):
         if self.path is None:
@@ -126,15 +133,15 @@ class ConfigOptionPolicy(ValidationPolicy):
                 if isclass(self.parser) and isinstance(self.default, self.parser):
                     return self.default
                 vctx = self.context.child(self.parser.__name__)
-                return _parse(self.parser, self.default, vctx=vctx)
+                return _parse(self.parser, self.default, vctx=vctx, **self.parser_args)
             else:
                 raise error
 
 
-def _parse(parser, value, vctx=None):
+def _parse(parser, value, vctx=None, **parser_args):
     if isclass(parser) and \
             issubclass(parser, ValidatableBase):
-        return parser(value, vctx=vctx)
+        return parser(value, vctx=vctx, **parser_args)
     else:
         return parser(value)
 
@@ -170,7 +177,7 @@ def get_dict_val(d, policy=None):
                 for parser in policy.parser:
                     try:
                         vctx = policy.context.child(parser.__name__)
-                        rval = _parse(parser, rval, vctx)
+                        rval = _parse(parser, rval, vctx, **policy.parser_args)
                         break
                     except:
                         continue
@@ -178,7 +185,7 @@ def get_dict_val(d, policy=None):
                     raise Exception
             else:
                 vctx = policy.context.child(policy.parser.__name__)
-                rval = _parse(policy.parser, rval, vctx)
+                rval = _parse(policy.parser, rval, vctx, **policy.parser_args)
         except Exception as e:
             raise ConfigValueInvalidError(policy=policy, value=rval)
 

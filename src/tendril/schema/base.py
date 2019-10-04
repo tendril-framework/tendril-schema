@@ -23,6 +23,7 @@ Base Schemas (:mod:`tendril.schema.base`)
 """
 
 import os
+import warnings
 from six import iteritems
 from decimal import Decimal
 from jinja2 import Template
@@ -78,11 +79,10 @@ class SchemaProcessorBase(ValidatableBase):
             self._process_element(key, policy)
 
     def __getattr__(self, item):
+        if item not in self._policies.keys():
+            raise AttributeError("%r has no attribute %r" % (type(self), item))
         policy = self._policies[item]
-        try:
-            return policy.get(self._raw)
-        except ContextualConfigError as e:
-            raise e
+        return policy.get(self._raw)
 
     def _validate(self):
         self._validated = True
@@ -93,6 +93,11 @@ class NakedSchemaObject(SchemaProcessorBase):
         super(NakedSchemaObject, self).__init__(*args, **kwargs)
         self._raw_content = content
         self._process()
+        if self.validation_errors.terrors:
+            warnings.warn("{0} of class {1} has {2} Validation Errors"
+                          "".format(self.ident, self.__class__.__name__,
+                                    self.validation_errors.terrors),
+                          UserWarning)
 
 
 class SchemaControlledObject(NakedSchemaObject):
@@ -148,6 +153,7 @@ class SchemaControlledObject(NakedSchemaObject):
 
 
 class SchemaControlledYamlFile(SchemaControlledObject):
+    FileNotFoundExceptionType = None
     template = None
 
     def __init__(self, path, *args, **kwargs):
@@ -173,6 +179,8 @@ class SchemaControlledYamlFile(SchemaControlledObject):
     def _get_yaml_file(self):
         if self.template and not os.path.exists(self._path):
             self._generate_stub()
+        if self.FileNotFoundExceptionType and not os.path.exists(self._path):
+            raise self.FileNotFoundExceptionType(self._path)
         return yaml.load(self._path)
 
 
