@@ -134,6 +134,8 @@ class SchemaControlledObject(NakedSchemaObject):
 
     def _verify_schema_decl(self):
         policy = self._policies['schema_policy']
+        if self.supports_schema_name == '*':
+            return
         if self.schema_name == self.legacy_schema_name:
             self.schema_name = self.supports_schema_name
         logger.debug("Validating Schema Policy : {0} {1}"
@@ -153,6 +155,7 @@ class SchemaControlledObject(NakedSchemaObject):
 
 
 class SchemaControlledYamlFile(SchemaControlledObject):
+    supports_schema_name = '*'
     FileNotFoundExceptionType = None
     template = None
 
