@@ -32,7 +32,7 @@ from tendril.schema.base import SchemaControlledYamlFile
 
 from tendril.utils.versions import get_namespace_package_names
 from tendril.utils import log
-logger = log.get_logger(__name__, log.DEFAULT)
+logger = log.get_logger(__name__, log.DEBUG)
 
 
 class SchemaManager(object):
@@ -62,6 +62,8 @@ class SchemaManager(object):
         self._docs.append((name, doc))
 
     def __getattr__(self, item):
+        if item == '__len__':
+            return len(self._schemas.keys())
         if item == '__all__':
             return list(self._schemas.keys()) + \
                    ['load_schema', 'load', 'doc_render']
@@ -81,3 +83,6 @@ class SchemaManager(object):
 
     def doc_render(self):
         return self._docs
+
+    def __repr__(self):
+        return "<SchemaManager>"
