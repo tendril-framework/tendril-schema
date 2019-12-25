@@ -62,6 +62,8 @@ class SchemaManager(object):
         self._docs.append((name, doc))
 
     def __getattr__(self, item):
+        if item == '__path__':
+            return None
         if item == '__len__':
             return len(self._schemas.keys())
         if item == '__all__':

@@ -106,6 +106,10 @@ class SchemaControlledObject(NakedSchemaObject):
     supports_schema_version_max = None
     supports_schema_version_min = None
 
+    def __init__(self, *args, strict_schema=False, **kwargs):
+        self._strict_schema = strict_schema
+        super(SchemaControlledObject, self).__init__(*args, **kwargs)
+
     def _stub_content(self):
         return {
             'schema_name': self.supports_schema_name,
@@ -151,6 +155,8 @@ class SchemaControlledObject(NakedSchemaObject):
         try:
             self._verify_schema_decl()
         except SchemaNotSupportedError as e:
+            if self._strict_schema:
+                raise
             self._validation_errors.add(e)
 
 
