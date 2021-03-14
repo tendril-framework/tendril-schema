@@ -62,6 +62,8 @@ class SchemaManager(object):
         self._docs.append((name, doc))
 
     def __getattr__(self, item):
+        if item == '__file__':
+            return None
         if item == '__path__':
             return None
         if item == '__len__':
