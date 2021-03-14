@@ -32,7 +32,7 @@ core_dependencies = [
     'six',
     'jinja2',
     'tendril-utils-core',
-    'tendril-validation',
+    'tendril-validation-common',
     'tendril-utils-yaml',
 ]
 
