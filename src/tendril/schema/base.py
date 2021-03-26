@@ -72,6 +72,12 @@ class SchemaProcessorBase(ValidatableBase):
                     self._validation_errors.add(value.validation_errors)
                 setattr(self, key, value)
             except ContextualConfigError as e:
+                # If the error trapped is not useful, raising it right here can
+                # sometimes be helpful.
+                # raise e
+                # TODO This seems to have to do with stacked exceptions, of the
+                #  "During handling of the above exception, another exception occurred:" variety.
+                #  A better way to communicate such errors is required.
                 self._validation_errors.add(e)
 
     def _process(self):
